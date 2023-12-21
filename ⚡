@@ -1,0 +1,113 @@
+#!/usr/bin/env python
+# ⚡, a simple package manager in python
+import os
+import sys
+import requests
+import sqlite3
+
+DB_FILE = "package_manager.db"
+
+def create_db():
+    with sqlite3.connect(DB_FILE) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS packages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                url TEXT NOT NULL
+            )
+        """)
+
+def add_package(url):
+    with sqlite3.connect(DB_FILE) as conn:
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO packages (url) VALUES (?)", (url,))
+        conn.commit()
+
+def list_packages():
+    with sqlite3.connect(DB_FILE) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, url FROM packages")
+        packages = cursor.fetchall()
+
+        if packages:
+            print("Available packages:")
+            for package in packages:
+                print(f"  {package[0]}. {package[1]}")
+        else:
+            print("No packages available.")
+
+def download(package_id, dest_folder="."):
+    with sqlite3.connect(DB_FILE) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT url FROM packages WHERE id=?", (package_id,))
+        result = cursor.fetchone()
+
+        if result:
+            url = result[0]
+            # Continue with the download logic (similar to the previous implementation)
+            filename = url.split("/")[-1]
+            dest_path = os.path.join(dest_folder, filename)
+
+            response = requests.get(url)
+            with open(dest_path, 'wb') as file:
+                file.write(response.content)
+
+            print(f"Downloaded: {filename} to {dest_path}")
+        else:
+            print("Error: Package not found.")
+
+def install(thing):
+    todo()
+
+def help():
+    print("⚡ - Simple Package Manager in Python")
+    print("Usage:")
+    print("  ⚡ list")
+    print("  ⚡ add <url>")
+    print("  ⚡ download <package_id> [destination_folder]")
+    print("  ⚡ install <thing>")
+    print("  ⚡ help")
+
+if __name__ == '__main__':
+    create_db()
+
+    if len(sys.argv) < 2:
+        help()
+    else:
+        command = sys.argv[1]
+
+        if command == "list":
+            list_packages()
+
+        elif command == "add":
+            if len(sys.argv) < 3:
+                print("Error: Missing URL to add")
+                sys.exit(1)
+
+            url_to_add = sys.argv[2]
+            add_package(url_to_add)
+
+        elif command == "download":
+            if len(sys.argv) < 3:
+                print("Error: Missing package ID for download")
+                sys.exit(1)
+
+            package_id_to_download = int(sys.argv[2])
+            dest_folder = sys.argv[3] if len(sys.argv) >= 4 else "."
+
+            download(package_id_to_download, dest_folder)
+
+        elif command == "install":
+            if len(sys.argv) < 3:
+                print("Error: Missing thing to install")
+                sys.exit(1)
+
+            thing = sys.argv[2]
+            install(thing)
+
+        elif command == "help":
+            help()
+
+        else:
+            print("Error: Unknown command")
+            sys.exit(1)
